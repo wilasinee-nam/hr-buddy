@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Red-White Theme for HR System */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 12%;
+
+    /* Primary: Professional Red */
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Light Red/Pink tint */
+    --secondary: 0 60% 96%;
+    --secondary-foreground: 0 72% 45%;
+
+    --muted: 0 10% 94%;
+    --muted-foreground: 0 5% 45%;
+
+    /* Accent: Warm Red */
+    --accent: 0 85% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 10% 90%;
+    --input: 0 10% 90%;
+    --ring: 0 72% 51%;
+
+    --radius: 0.75rem;
+
+    /* Success/Warning colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 25%;
+    --sidebar-primary: 0 72% 51%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 60% 96%;
+    --sidebar-accent-foreground: 0 72% 45%;
+    --sidebar-border: 0 10% 90%;
+    --sidebar-ring: 0 72% 51%;
+  }
+
+  .dark {
+    --background: 0 0% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 0 72% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 30% 18%;
+    --secondary-foreground: 0 60% 80%;
+
+    --muted: 0 10% 18%;
+    --muted-foreground: 0 5% 60%;
+
+    --accent: 0 85% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 10% 20%;
+    --input: 0 10% 20%;
+    --ring: 0 72% 55%;
+
+    --success: 142 76% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 89% 52%;
+    --info-foreground: 0 0% 100%;
+
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 0 72% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 30% 18%;
+    --sidebar-accent-foreground: 0 60% 80%;
+    --sidebar-border: 0 10% 20%;
+    --sidebar-ring: 0 72% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

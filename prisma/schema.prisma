@@ -1,0 +1,259 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id             Int           @id @default(autoincrement())
+  name           String?       @db.VarChar(255)
+  organizationId Int?          @map("organization_id")
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime      @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  uniqueId       String?       @unique(map: "IDX_a58931548777e5233ab373011f") @map("unique_id") @db.VarChar(255)
+  lineUserId     String?       @unique(map: "IDX_5e36a5095adecf846fff3dcf47") @map("line_user_id") @db.VarChar(255)
+  displayName    String?       @db.VarChar(255)
+  pictureUrl     String?       @db.Text
+  status         String        @default("active") @db.VarChar(20)
+
+  // Employee Data
+  employeeId String? @map("employee_id") @db.VarChar(50)
+
+  // Legacy String Data
+  department String? @db.VarChar(255)
+  position   String? @db.VarChar(255)
+  branch     String? @db.VarChar(255)
+
+  // New Relations
+  departmentId  Int?        @map("department_id")
+  departmentRel Department? @relation(fields: [departmentId], references: [id])
+
+  positionId  Int?      @map("position_id")
+  positionRel Position? @relation(fields: [positionId], references: [id])
+
+  startDate    DateTime? @map("start_date") @db.Date
+  workTime     String?   @map("work_time") @db.VarChar(255) // Legacy string
+  phoneNumber  String?   @map("phone_number") @db.VarChar(50)
+  email        String?   @db.VarChar(255)
+  vacationDays Int?      @default(0) @map("vacation_days")
+
+  attendances         Attendance[]
+  departmentApprovers DepartmentApprover[]
+  workSchedules       WorkSchedule[]
+  leaveRequests       LeaveRequest[]
+  leaveEntitlements   LeaveEntitlement[]
+
+  branchId  Int?    @map("branch_id")
+  branchRel Branch? @relation(fields: [branchId], references: [id])
+
+  @@index([organizationId], map: "IDX_21a659804ed7bf61eb91688dea")
+  @@map("users")
+}
+
+model Attendance {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  timestamp DateTime @default(now())
+  type      String // "IN" or "OUT"
+}
+
+enum OrganizationStatus {
+  active
+  inactive
+}
+
+model Organization {
+  id                Int                @id @default(autoincrement())
+  name              String             @db.VarChar(255)
+  description       String?            @db.Text
+  status            OrganizationStatus @default(active)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  oaChannelId       String?            @unique(map: "IDX_75d1098bfd452a09a5dd7a8cac") @map("oa_channel_id") @db.VarChar(255)
+  channelId         String?            @unique(map: "IDX_bc53a3a759544e6cc2165980f9") @map("channel_id") @db.VarChar(255)
+  lineChannelSecret String?            @map("line_channel_secret") @db.VarChar(255)
+  lineRedirectUri   String?            @map("line_redirect_uri") @db.VarChar(255)
+
+  users           User[]
+  branches        Branch[]
+  departments     Department[]
+  positions       Position[]
+  workSchedules   WorkSchedule[]
+  rolePermissions RolePermission[]
+  leaveTypes      LeaveType[]
+
+  @@index([status], map: "IDX_f3770f157bd77d83ab022e92fc")
+  @@index([createdAt], map: "IDX_016dacd1399bee33b39ad7fa97")
+  @@map("organizations")
+}
+
+model Branch {
+  id             Int          @id @default(autoincrement())
+  organizationId Int          @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String       @db.VarChar(255)
+  address        String?      @db.Text
+  lat            Float?
+  lng            Float?
+  radius         Int          @default(300)
+  order          Int          @default(0)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  users          User[]
+
+  @@index([organizationId])
+  @@map("branches")
+}
+
+model Department {
+  id             Int          @id @default(autoincrement())
+  organizationId Int          @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String       @db.VarChar(255)
+  description    String?      @db.Text
+  color          String?      @db.VarChar(50)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+
+  users               User[]
+  departmentApprovers DepartmentApprover[]
+
+  @@index([organizationId])
+  @@map("departments")
+}
+
+model Position {
+  id             Int          @id @default(autoincrement())
+  organizationId Int          @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String       @db.VarChar(255)
+  description    String?      @db.Text
+  color          String?      @db.VarChar(50)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+
+  users     User[]
+  approvers DepartmentApprover[]
+
+  @@index([organizationId])
+  @@map("positions")
+}
+
+model WorkSchedule {
+  id             Int          @id @default(autoincrement())
+  organizationId Int          @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String       @db.VarChar(255)
+  startTime      String       @map("start_time") @db.VarChar(10)
+  endTime        String       @map("end_time") @db.VarChar(10)
+  lunchStart     String?      @map("lunch_start") @db.VarChar(10)
+  lunchEnd       String?      @map("lunch_end") @db.VarChar(10)
+  workDays       Json         @map("work_days") // Array of numbers [0-6]
+  isDefault      Boolean      @default(false) @map("is_default")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+
+  users User[]
+
+  @@index([organizationId])
+  @@map("work_schedules")
+}
+
+model RolePermission {
+  id             Int          @id @default(autoincrement())
+  organizationId Int          @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  role           String       @db.VarChar(50) // admin, hr, manager, employee
+  permissions    Json // Array of permission strings
+  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+
+  @@unique([organizationId, role])
+  @@map("role_permissions")
+}
+
+model DepartmentApprover {
+  id           Int        @id @default(autoincrement())
+  departmentId Int        @map("department_id")
+  department   Department @relation(fields: [departmentId], references: [id])
+  approverId   Int        @map("approver_id")
+  approver     User       @relation(fields: [approverId], references: [id])
+  order        Int        @default(1) // 1 = First approver, 2 = Second approver, etc.
+  createdAt    DateTime   @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  position     Position?  @relation(fields: [positionId], references: [id])
+  positionId   Int?
+
+  @@unique([departmentId, order], map: "IDX_dept_order_unique")
+  @@map("department_approvers")
+}
+
+model LeaveType {
+  id                    Int          @id @default(autoincrement())
+  organizationId        Int          @map("organization_id")
+  organization          Organization @relation(fields: [organizationId], references: [id])
+  code                  String       @db.VarChar(50)
+  name                  String       @db.VarChar(255)
+  description           String?      @db.Text
+  defaultDays           Int?         @map("default_days") // null = unlimited
+  maxPaidDays           Int?         @map("max_paid_days")
+  requiresDocument      Boolean      @default(false) @map("requires_document")
+  requiresAdvanceNotice Boolean      @default(false) @map("requires_advance_notice")
+  advanceNoticeDays     Int          @default(0) @map("advance_notice_days")
+  isActive              Boolean      @default(true) @map("is_active")
+  color                 String?      @db.VarChar(50)
+  createdAt             DateTime     @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt             DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+
+  leaveRequests     LeaveRequest[]
+  leaveEntitlements LeaveEntitlement[]
+
+  @@unique([organizationId, code])
+  @@map("leave_types")
+}
+
+model LeaveRequest {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @map("user_id")
+  user            User      @relation(fields: [userId], references: [id])
+  leaveTypeId     Int       @map("leave_type_id")
+  leaveType       LeaveType @relation(fields: [leaveTypeId], references: [id])
+  startDate       DateTime  @map("start_date") @db.Date
+  endDate         DateTime  @map("end_date") @db.Date
+  totalDays       Float     @map("total_days") // Allow half days if needed
+  reason          String    @db.Text
+  documentUrl     String?   @map("document_url") @db.Text
+  status          String    @default("pending") @db.VarChar(20) // pending, approved, rejected, cancelled
+  rejectionReason String?   @map("rejection_reason") @db.Text
+  approvedBy      Int?      @map("approved_by") // User ID of approver
+  approvedAt      DateTime? @map("approved_at") @db.DateTime(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+
+  @@index([userId])
+  @@index([leaveTypeId])
+  @@index([status])
+  @@map("leave_requests")
+}
+
+model LeaveEntitlement {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @map("user_id")
+  user          User      @relation(fields: [userId], references: [id])
+  leaveTypeId   Int       @map("leave_type_id")
+  leaveType     LeaveType @relation(fields: [leaveTypeId], references: [id])
+  year          Int
+  entitledDays  Float     @default(0) @map("entitled_days")
+  usedDays      Float     @default(0) @map("used_days")
+  pendingDays   Float     @default(0) @map("pending_days")
+  carryOverDays Float     @default(0) @map("carry_over_days")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+
+  @@unique([userId, leaveTypeId, year])
+  @@map("leave_entitlements")
+}
