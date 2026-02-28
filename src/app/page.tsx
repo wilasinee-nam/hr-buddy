@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 export default async function Page(props: { searchParams: Promise<{ channel_id?: string }> }) {
     const sp = await props.searchParams
     const cookieStore = await cookies()
+    console.log("[Prisma] DATABASE_URL:", process.env.DATABASE_URL);
 
     // 1. Check for existing session
     const orgChannelId = cookieStore.get('org_channel_id')?.value

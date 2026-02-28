@@ -1,8 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
+
+
 const prismaClientSingleton = () => {
     const connectionString = process.env.DATABASE_URL;
+    console.log("[Prisma] DATABASE_URL:", connectionString);
     const adapter = new PrismaPg(connectionString!);
     const client = new PrismaClient({
         adapter,
