@@ -1,12 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
-
+console.log("[Prisma] DATABASE_URL:", process.env.DATABASE_URL);
 
 const prismaClientSingleton = () => {
     const connectionString = process.env.DATABASE_URL;
-    console.log("[Prisma] DATABASE_URL:", connectionString);
-    const adapter = new PrismaPg(connectionString!);
+    const pool = new Pool({ connectionString });
+    const adapter = new PrismaPg(pool);
     const client = new PrismaClient({
         adapter,
         log: [

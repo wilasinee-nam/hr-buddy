@@ -1,6 +1,13 @@
 import Redis from "ioredis";
 
+// const REDIS_ENABLED = process.env.REDIS_ENABLED === "true";
+const REDIS_ENABLED = "true";
+
 const redisClientSingleton = () => {
+    if (!REDIS_ENABLED) {
+        console.log("[Redis] Disabled - REDIS_ENABLED is not 'true'");
+        return null;
+    }
     return new Redis({
         host: process.env.REDIS_HOST || "localhost",
         port: parseInt(process.env.REDIS_PORT || "6379"),
