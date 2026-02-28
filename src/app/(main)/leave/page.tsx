@@ -40,6 +40,7 @@ export default function LeavePage() {
             }
         };
         fetchData();
+
     }, [organization?.id, user?.id]);
 
     const getEntitlement = (typeId: number) => {
