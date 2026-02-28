@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+*.log
+.env
+.env.*
+.DS_Store
+tsconfig.tsbuildinfo
+validate_output.txt
+prisma_error.log

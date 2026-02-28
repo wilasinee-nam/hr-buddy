@@ -1,5 +1,14 @@
 # Welcome to your Lovable project
 
+docker build -t hr-buddy .
+docker run -p 3000:3000 --env-file .env hr-buddy
+
+docker run --network host --env-file .env hr-buddy
+
+
+ืNo cache
+docker build --no-cache -t hr-buddy .
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
