@@ -5,10 +5,12 @@ import { Pool } from "pg";
 console.log("[Prisma] DATABASE_URL:", process.env.DATABASE_URL);
 
 const prismaClientSingleton = () => {
-    const connectionString = process.env.DATABASE_URL;
+    const connectionString = process.env.DATABASE_URL?.replace(/[?&]sslmode=[^&]*/g, '');
     const pool = new Pool({
         connectionString,
-        ssl: { rejectUnauthorized: false },
+        ssl: process.env.DATABASE_URL?.includes('sslmode=')
+            ? { rejectUnauthorized: false }
+            : undefined,
     });
     const adapter = new PrismaPg(pool);
     const client = new PrismaClient({
