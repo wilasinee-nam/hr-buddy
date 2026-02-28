@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
 }
 
 model User {
@@ -11,8 +11,8 @@ model User {
   name           String?       @db.VarChar(255)
   organizationId Int?          @map("organization_id")
   organization   Organization? @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime      @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   uniqueId       String?       @unique(map: "IDX_a58931548777e5233ab373011f") @map("unique_id") @db.VarChar(255)
   lineUserId     String?       @unique(map: "IDX_5e36a5095adecf846fff3dcf47") @map("line_user_id") @db.VarChar(255)
   displayName    String?       @db.VarChar(255)
@@ -71,8 +71,8 @@ model Organization {
   name              String             @db.VarChar(255)
   description       String?            @db.Text
   status            OrganizationStatus @default(active)
-  createdAt         DateTime           @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   oaChannelId       String?            @unique(map: "IDX_75d1098bfd452a09a5dd7a8cac") @map("oa_channel_id") @db.VarChar(255)
   channelId         String?            @unique(map: "IDX_bc53a3a759544e6cc2165980f9") @map("channel_id") @db.VarChar(255)
   lineChannelSecret String?            @map("line_channel_secret") @db.VarChar(255)
@@ -101,8 +101,8 @@ model Branch {
   lng            Float?
   radius         Int          @default(300)
   order          Int          @default(0)
-  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   users          User[]
 
   @@index([organizationId])
@@ -116,8 +116,8 @@ model Department {
   name           String       @db.VarChar(255)
   description    String?      @db.Text
   color          String?      @db.VarChar(50)
-  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   users               User[]
   departmentApprovers DepartmentApprover[]
@@ -133,8 +133,8 @@ model Position {
   name           String       @db.VarChar(255)
   description    String?      @db.Text
   color          String?      @db.VarChar(50)
-  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   users     User[]
   approvers DepartmentApprover[]
@@ -154,8 +154,8 @@ model WorkSchedule {
   lunchEnd       String?      @map("lunch_end") @db.VarChar(10)
   workDays       Json         @map("work_days") // Array of numbers [0-6]
   isDefault      Boolean      @default(false) @map("is_default")
-  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   users User[]
 
@@ -169,8 +169,8 @@ model RolePermission {
   organization   Organization @relation(fields: [organizationId], references: [id])
   role           String       @db.VarChar(50) // admin, hr, manager, employee
   permissions    Json // Array of permission strings
-  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([organizationId, role])
   @@map("role_permissions")
@@ -183,8 +183,8 @@ model DepartmentApprover {
   approverId   Int        @map("approver_id")
   approver     User       @relation(fields: [approverId], references: [id])
   order        Int        @default(1) // 1 = First approver, 2 = Second approver, etc.
-  createdAt    DateTime   @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   position     Position?  @relation(fields: [positionId], references: [id])
   positionId   Int?
 
@@ -206,8 +206,8 @@ model LeaveType {
   advanceNoticeDays     Int          @default(0) @map("advance_notice_days")
   isActive              Boolean      @default(true) @map("is_active")
   color                 String?      @db.VarChar(50)
-  createdAt             DateTime     @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt             DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   leaveRequests     LeaveRequest[]
   leaveEntitlements LeaveEntitlement[]
@@ -230,9 +230,9 @@ model LeaveRequest {
   status          String    @default("pending") @db.VarChar(20) // pending, approved, rejected, cancelled
   rejectionReason String?   @map("rejection_reason") @db.Text
   approvedBy      Int?      @map("approved_by") // User ID of approver
-  approvedAt      DateTime? @map("approved_at") @db.DateTime(6)
-  createdAt       DateTime  @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([userId])
   @@index([leaveTypeId])
@@ -251,8 +251,8 @@ model LeaveEntitlement {
   usedDays      Float     @default(0) @map("used_days")
   pendingDays   Float     @default(0) @map("pending_days")
   carryOverDays Float     @default(0) @map("carry_over_days")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(6)
-  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([userId, leaveTypeId, year])
   @@map("leave_entitlements")
