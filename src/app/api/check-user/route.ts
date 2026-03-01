@@ -1,32 +1,29 @@
-'use server'
-
 import { cookies } from 'next/headers'
 import prisma from '@/lib/prisma'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function verifyUser(prevState: any, formData: FormData) {
-    const identifier = formData.get('identifier') as string
-    const organizationId = formData.get('organizationId') as string
+export async function POST(request: NextRequest) {
+    const body = await request.json()
+    const { identifier, organizationId } = body
 
     if (!identifier) {
-        return { error: 'กรุณากรอกรหัสพนักงานหรือเบอร์โทรศัพท์' }
+        return NextResponse.json({ error: 'กรุณากรอกรหัสพนักงานหรือเบอร์โทรศัพท์' }, { status: 400 })
     }
 
     const cookieStore = await cookies()
     const lineUserDataStr = cookieStore.get('line_user_data')?.value
 
     if (!lineUserDataStr) {
-        return { error: 'ไม่พบข้อมูล LINE กรุณาเข้าสู่ระบบใหม่อีกครั้ง' }
+        return NextResponse.json({ error: 'ไม่พบข้อมูล LINE กรุณาเข้าสู่ระบบใหม่อีกครั้ง' }, { status: 400 })
     }
 
     const lineUser = JSON.parse(lineUserDataStr)
 
     try {
-        // Find user by employeeId OR phoneNumber AND organizationId
         const user = await prisma.user.findFirst({
             where: {
                 organizationId: parseInt(organizationId),
                 OR: [
-
                     { employeeId: identifier },
                     { phoneNumber: identifier }
                 ]
@@ -34,14 +31,13 @@ export async function verifyUser(prevState: any, formData: FormData) {
         })
 
         if (!user) {
-            return { error: 'ไม่พบข้อมูลพนักงานในระบบ กรุณาติดต่อ HR' }
+            return NextResponse.json({ error: 'ไม่พบข้อมูลพนักงานในระบบ กรุณาติดต่อ HR' }, { status: 404 })
         }
 
         if (user.lineUserId) {
-            return { error: 'พนักงานคนนี้ได้ลงทะเบียน LINE ไว้แล้ว' }
+            return NextResponse.json({ error: 'พนักงานคนนี้ได้ลงทะเบียน LINE ไว้แล้ว' }, { status: 409 })
         }
 
-        // Update user with LINE info
         await prisma.user.update({
             where: { id: user.id },
             data: {
@@ -52,22 +48,19 @@ export async function verifyUser(prevState: any, formData: FormData) {
             }
         })
 
-        // Set session cookies
         cookieStore.set('app_user_id', String(user.id), {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             path: '/',
-            maxAge: 60 * 60 * 24 * 7 // 1 week
+            maxAge: 60 * 60 * 24 * 7
         })
 
-        // Clear temp cookie
         cookieStore.delete('line_user_data')
 
+        return NextResponse.json({ success: true })
     } catch (error) {
         console.error('Verify user error:', error)
-        return { error: 'เกิดข้อผิดพลาดในการตรวจสอบข้อมูล' }
+        return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการตรวจสอบข้อมูล' }, { status: 500 })
     }
-
-    return { success: true }
 }

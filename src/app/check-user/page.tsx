@@ -1,21 +1,19 @@
 'use client'
 
-import { useActionState } from 'react'
-import { verifyUser } from './actions'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { useSearchParams } from 'next/navigation'
 
-const initialState = {
-    error: '',
-}
-
 export default function CheckUserPage() {
+    const router = useRouter()
     const searchParams = useSearchParams()
     const organizationId = searchParams.get('organization_id')
-    const [state, formAction, isPending] = useActionState(verifyUser, initialState)
+    const [error, setError] = useState('')
+    const [isPending, setIsPending] = useState(false)
 
     if (!organizationId) {
         return (
@@ -30,6 +28,35 @@ export default function CheckUserPage() {
         )
     }
 
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setError('')
+        setIsPending(true)
+
+        const formData = new FormData(e.currentTarget)
+        const identifier = formData.get('identifier') as string
+
+        try {
+            const res = await fetch('/api/check-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ identifier, organizationId }),
+            })
+
+            const data = await res.json()
+
+            if (data.error) {
+                setError(data.error)
+            } else if (data.success) {
+                router.push('/home')
+            }
+        } catch {
+            setError('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
+        } finally {
+            setIsPending(false)
+        }
+    }
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
             <Card className="w-full max-w-md">
@@ -40,9 +67,7 @@ export default function CheckUserPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form action={formAction} className="space-y-4">
-                        <input type="hidden" name="organizationId" value={organizationId} />
-
+                    <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="identifier">รหัสพนักงาน / เบอร์โทรศัพท์</Label>
                             <Input
@@ -53,9 +78,9 @@ export default function CheckUserPage() {
                             />
                         </div>
 
-                        {state?.error && (
+                        {error && (
                             <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
-                                {state.error}
+                                {error}
                             </div>
                         )}
 
