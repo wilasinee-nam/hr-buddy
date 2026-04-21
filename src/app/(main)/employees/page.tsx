@@ -43,11 +43,18 @@ interface Employee {
     pictureUrl: string | null;
     vacationDays: number | null;
     workSchedules: { id: number; name: string; startTime: string; endTime: string }[];
+    leaveEntitlements?: { leaveTypeId: number; entitledDays: number }[];
 }
 
 interface FormOption {
     id: number;
     name: string;
+}
+
+interface FormLeaveType {
+    id: number;
+    name: string;
+    defaultDays: number | null;
 }
 
 interface FormSchedule {
@@ -64,6 +71,7 @@ export default function EmployeesPage() {
     const [branches, setBranches] = useState<FormOption[]>([]);
     const [positions, setPositions] = useState<FormOption[]>([]);
     const [schedules, setSchedules] = useState<FormSchedule[]>([]);
+    const [leaveTypes, setLeaveTypes] = useState<FormLeaveType[]>([]);
     const [loading, setLoading] = useState(true);
     const [checkinCount, setCheckinCount] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
@@ -81,10 +89,17 @@ export default function EmployeesPage() {
         phone: "",
         email: "",
         vacationDays: "",
+        leaveEntitlements: {} as Record<string, string>,
     });
 
     const resetForm = () => {
-        setFormData({ name: "", employeeId: "", positionId: "", departmentId: "", branchId: "", scheduleId: "", phone: "", email: "", vacationDays: "" });
+        const defaultEntitlements: Record<string, string> = {};
+        leaveTypes.forEach(t => {
+            if (t.defaultDays !== null) {
+                defaultEntitlements[t.id] = t.defaultDays.toString();
+            }
+        });
+        setFormData({ name: "", employeeId: "", positionId: "", departmentId: "", branchId: "", scheduleId: "", phone: "", email: "", vacationDays: "", leaveEntitlements: defaultEntitlements });
     };
 
     const fetchData = async () => {
@@ -103,6 +118,7 @@ export default function EmployeesPage() {
                 setBranches(formRes.data.branches);
                 setPositions(formRes.data.positions);
                 setSchedules(formRes.data.schedules);
+                if (formRes.data.leaveTypes) setLeaveTypes(formRes.data.leaveTypes);
             }
             if (checkinRes.success) {
                 setCheckinCount(checkinRes.count);
@@ -131,6 +147,11 @@ export default function EmployeesPage() {
         if (!user?.organizationId || !formData.name.trim()) return;
         setSubmitting(true);
         try {
+            const parsedEntitlements: Record<string, number> = {};
+            Object.entries(formData.leaveEntitlements).forEach(([id, val]) => {
+                if (val !== "") parsedEntitlements[id] = parseFloat(val);
+            });
+
             const result = await createEmployee(user.organizationId, {
                 name: formData.name,
                 employeeId: formData.employeeId || undefined,
@@ -141,6 +162,7 @@ export default function EmployeesPage() {
                 phoneNumber: formData.phone || undefined,
                 email: formData.email || undefined,
                 vacationDays: formData.vacationDays ? parseInt(formData.vacationDays) : undefined,
+                leaveEntitlements: parsedEntitlements,
             });
             if (result.success) {
                 toast.success("เพิ่มพนักงานใหม่เรียบร้อยแล้ว");
@@ -161,6 +183,11 @@ export default function EmployeesPage() {
         if (!selectedEmployee) return;
         setSubmitting(true);
         try {
+            const parsedEntitlements: Record<string, number> = {};
+            Object.entries(formData.leaveEntitlements).forEach(([id, val]) => {
+                if (val !== "") parsedEntitlements[id] = parseFloat(val);
+            });
+
             const result = await updateEmployee(selectedEmployee.id, {
                 name: formData.name || undefined,
                 employeeId: formData.employeeId || null,
@@ -171,6 +198,7 @@ export default function EmployeesPage() {
                 phoneNumber: formData.phone || undefined,
                 email: formData.email || undefined,
                 vacationDays: formData.vacationDays ? parseInt(formData.vacationDays) : undefined,
+                leaveEntitlements: parsedEntitlements,
             });
             if (result.success) {
                 toast.success("แก้ไขข้อมูลพนักงานเรียบร้อยแล้ว");
@@ -190,6 +218,12 @@ export default function EmployeesPage() {
 
     const openEditDialog = (employee: Employee) => {
         setSelectedEmployee(employee);
+        const existingEntitlements: Record<string, string> = {};
+        if (employee.leaveEntitlements) {
+            employee.leaveEntitlements.forEach(e => {
+                existingEntitlements[e.leaveTypeId] = e.entitledDays.toString();
+            });
+        }
         setFormData({
             name: employee.name || "",
             employeeId: employee.employeeId || "",
@@ -200,6 +234,7 @@ export default function EmployeesPage() {
             phone: employee.phoneNumber || "",
             email: employee.email || "",
             vacationDays: employee.vacationDays?.toString() || "",
+            leaveEntitlements: existingEntitlements,
         });
         setIsEditOpen(true);
     };
@@ -296,15 +331,33 @@ export default function EmployeesPage() {
                     </SelectContent>
                 </Select>
             </div>
-            <div className="space-y-2">
-                <Label>สิทธิ์ลาพักร้อน (วัน)</Label>
-                <Input
-                    type="number"
-                    placeholder="0"
-                    min="0"
-                    value={formData.vacationDays}
-                    onChange={(e) => setFormData({ ...formData, vacationDays: e.target.value })}
-                />
+            <div className="space-y-4 pt-2 border-t mt-4 mb-2">
+                <Label className="font-semibold text-foreground">สิทธิ์ลาพักร้อน และสิทธิ์การลางานอื่นๆ (วัน/ปี)</Label>
+                {leaveTypes.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-4">
+                        {leaveTypes.map((lt) => (
+                            <div key={lt.id} className="space-y-1.5 shadow-sm p-3 rounded-md border bg-muted/20">
+                                <Label className="text-xs text-muted-foreground">{lt.name}</Label>
+                                <Input
+                                    type="number"
+                                    placeholder={lt.defaultDays !== null ? lt.defaultDays.toString() : "0"}
+                                    min="0"
+                                    step="0.5"
+                                    value={formData.leaveEntitlements[lt.id] || ""}
+                                    onChange={(e) => setFormData({
+                                        ...formData,
+                                        leaveEntitlements: {
+                                            ...formData.leaveEntitlements,
+                                            [lt.id]: e.target.value
+                                        }
+                                    })}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-xs text-muted-foreground italic">ไม่พบการตั้งค่าประเภทการลาในระบบ</p>
+                )}
             </div>
             <div className="space-y-2">
                 <Label>เบอร์โทร</Label>
@@ -443,16 +496,6 @@ export default function EmployeesPage() {
                                     </div>
 
                                     <div className="flex items-center gap-1">
-                                        <Link href={`/employees/${employee.id}/leave-entitlements`}>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8"
-                                                title="สิทธิ์การลา"
-                                            >
-                                                <CalendarDays className="h-4 w-4 text-primary" />
-                                            </Button>
-                                        </Link>
                                         <PermissionGate permission="employees.edit">
                                             <Button
                                                 variant="ghost"

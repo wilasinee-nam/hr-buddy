@@ -4,12 +4,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, MapPin, CheckCircle2, Navigation, AlertTriangle } from "lucide-react";
+import { Clock, MapPin, CheckCircle2, Navigation, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Branch, initialBranches } from "@/data/mock-branches";
-
-// Mock current user's assigned branch
-const currentUserBranchId = "1";
 
 // Haversine formula to calculate distance between two points
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -31,10 +27,55 @@ export default function AttendancePage() {
     const [currentLocation, setCurrentLocation] = useState<{ lat: number; lon: number } | null>(null);
     const [locationError, setLocationError] = useState<string | null>(null);
     const [distance, setDistance] = useState<number | null>(null);
-    const [branches] = useState<Branch[]>(initialBranches);
+    const [isLate, setIsLate] = useState(false);
+    const [lateMinutes, setLateMinutes] = useState(0);
+    const [isEarly, setIsEarly] = useState(false);
+    const [earlyMinutes, setEarlyMinutes] = useState(0);
+    
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [assignedBranch, setAssignedBranch] = useState<any>(null);
 
-    // Get user's assigned branch
-    const assignedBranch = branches.find(b => b.id === currentUserBranchId);
+    // Fetch initial state
+    useEffect(() => {
+        const fetchState = async () => {
+            try {
+                const res = await fetch('/api/attendance');
+                if (res.ok) {
+                    const data = await res.json();
+                    setAssignedBranch(data.branch);
+                    setIsCheckedIn(data.checkedIn);
+                    
+                    if (data.checkInTime) {
+                        setCheckInTime(new Date(data.checkInTime).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }));
+                    }
+                    if (data.checkOutTime) {
+                        setCheckOutTime(new Date(data.checkOutTime).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }));
+                    }
+                    
+                    if (data.isLate) {
+                        setIsLate(true);
+                        setLateMinutes(data.lateMinutes || 0);
+                    }
+                    
+                    if (data.isEarly) {
+                        setIsEarly(true);
+                        setEarlyMinutes(data.earlyMinutes || 0);
+                    } else {
+                        setIsEarly(false);
+                        setEarlyMinutes(0);
+                    }
+                } else {
+                    toast.error("ไม่สามารถดึงข้อมูลพนักงานได้");
+                }
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchState();
+    }, []);
 
     // Get current location
     useEffect(() => {
@@ -49,22 +90,22 @@ export default function AttendancePage() {
                     setLocationError(null);
 
                     // Calculate distance to assigned branch
-                    if (assignedBranch) {
+                    if (assignedBranch && assignedBranch.lat && assignedBranch.lng) {
                         const dist = calculateDistance(
                             newLoc.lat, newLoc.lon,
-                            assignedBranch.lat, assignedBranch.lon
+                            assignedBranch.lat, assignedBranch.lng
                         );
                         setDistance(Math.round(dist));
                     }
                 },
                 (error) => {
-                    setLocationError("ไม่สามารถระบุตำแหน่งได้ กรุณาเปิด GPS");
+                    setLocationError("ไม่สามารถระบุตำแหน่ง GPS ได้ กรุณาเปิดระบบ Location ของเครื่อง");
                 },
                 { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
             );
             return () => navigator.geolocation.clearWatch(watchId);
         } else if (typeof window !== "undefined") {
-            setLocationError("เบราว์เซอร์ไม่รองรับ GPS");
+            setLocationError("อุปกรณ์นี้ไม่รองรับ GPS");
         }
     }, [assignedBranch]);
 
@@ -77,33 +118,61 @@ export default function AttendancePage() {
 
     const isWithinRange = distance !== null && assignedBranch && distance <= assignedBranch.radius;
 
-    const handleCheckIn = () => {
-        if (!currentLocation) {
-            toast.error("กรุณารอระบบระบุตำแหน่งก่อน");
+    const performAttendance = async (type: 'IN' | 'OUT') => {
+        if (!currentLocation || distance === null) {
+            toast.error("กรุณารอระบบพิจารณาตำแหน่ง หรือเปิด GPS ก่อน");
             return;
         }
 
-        const time = getCurrentTime();
-        setCheckInTime(time);
-        setIsCheckedIn(true);
+        setIsSubmitting(true);
+        try {
+            const res = await fetch('/api/attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type,
+                    lat: currentLocation.lat,
+                    lng: currentLocation.lon,
+                    distance
+                })
+            });
 
-        if (isWithinRange) {
-            toast.success(`เช็คอินสำเร็จ เวลา ${time} (ระยะห่าง ${distance} ม.)`);
-        } else {
-            toast.warning(`เช็คอินสำเร็จ เวลา ${time} (ระยะห่าง ${distance} ม. - นอกพื้นที่)`);
+            const data = await res.json();
+            if (res.ok) {
+                const time = getCurrentTime();
+                
+                if (type === 'IN') {
+                    setCheckInTime(time);
+                    setIsCheckedIn(true);
+                    if (data.isLate) {
+                        setIsLate(true);
+                        setLateMinutes(data.lateMinutes || 0);
+                    }
+                } else {
+                    setCheckOutTime(time);
+                    if (data.isEarly) {
+                        setIsEarly(true);
+                        setEarlyMinutes(data.earlyMinutes || 0);
+                    } else {
+                        setIsEarly(false);
+                        setEarlyMinutes(0);
+                    }
+                }
+
+                if (data.isWithinRadius) {
+                    toast.success(`บันทึกเวลาสำเร็จ ${time}`);
+                } else {
+                    toast.warning(`บันทึกเวลาสำเร็จ ${time} (ระวัง: นอกพื้นที่รัศมี)`);
+                }
+            } else {
+                toast.error(data.error || "เกิดข้อผิดพลาด");
+            }
+        } catch (error) {
+            toast.error("มีปัญหาในการเชื่อมต่อกับเซิร์ฟเวอร์");
+        } finally {
+            setIsSubmitting(false);
         }
-    };
-
-    const handleCheckOut = () => {
-        const time = getCurrentTime();
-        setCheckOutTime(time);
-
-        if (isWithinRange) {
-            toast.success(`เช็คเอาท์สำเร็จ เวลา ${time} (ระยะห่าง ${distance} ม.)`);
-        } else {
-            toast.warning(`เช็คเอาท์สำเร็จ เวลา ${time} (ระยะห่าง ${distance} ม. - นอกพื้นที่)`);
-        }
-    };
+    }
 
     const today = new Date().toLocaleDateString("th-TH", {
         weekday: "long",
@@ -124,6 +193,14 @@ export default function AttendancePage() {
         return "destructive";
     };
 
+    if (isLoading) {
+        return (
+            <div className="flex h-[80vh] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
     return (
         <div className="p-4 space-y-6">
             {/* Date Display */}
@@ -141,7 +218,7 @@ export default function AttendancePage() {
                     </p>
                     <div className="flex items-center justify-center gap-1 text-primary-foreground/70">
                         <MapPin className="h-3.5 w-3.5" />
-                        <span className="text-xs">{assignedBranch?.name || "SySmile"}</span>
+                        <span className="text-xs">{assignedBranch?.name || "ไม่ระบุสาขา"}</span>
                     </div>
                 </CardContent>
             </Card>
@@ -198,38 +275,56 @@ export default function AttendancePage() {
 
             {/* Main Check In/Out Button */}
             <div className="flex flex-col items-center justify-center py-6">
-                {!checkOutTime ? (
-                    <Button
-                        onClick={isCheckedIn ? handleCheckOut : handleCheckIn}
-                        size="lg"
-                        disabled={!currentLocation}
-                        className={`w-40 h-40 rounded-full flex-col gap-3 text-xl font-bold shadow-2xl transition-all duration-300 ${isCheckedIn
-                            ? "bg-gradient-to-br from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-                            : "bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-                            }`}
-                    >
+                <Button
+                    onClick={() => performAttendance(isCheckedIn ? 'OUT' : 'IN')}
+                    size="lg"
+                    disabled={!currentLocation || isSubmitting}
+                    className={`w-40 h-40 rounded-full flex-col gap-3 text-xl font-bold shadow-2xl transition-all duration-300 ${isCheckedIn
+                        ? "bg-gradient-to-br from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                        : "bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                        }`}
+                >
+                    {isSubmitting ? (
+                         <Loader2 className="h-12 w-12 animate-spin" />
+                    ) : (
                         <Clock className="h-12 w-12" />
-                        <span>{isCheckedIn ? "เช็คเอาท์" : "เช็คอิน"}</span>
-                    </Button>
-                ) : (
-                    <div className="w-40 h-40 rounded-full flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-success/20 to-success/10 border-4 border-success">
-                        <CheckCircle2 className="h-12 w-12 text-success" />
-                        <span className="text-lg font-bold text-success">เสร็จสิ้น</span>
-                    </div>
+                    )}
+                    <span>{isCheckedIn ? "เช็คเอาท์" : "เช็คอิน"}</span>
+                </Button>
+                
+                {/* Note for multiple checkouts */}
+                {checkOutTime && (
+                    <p className="text-xs text-muted-foreground mt-4 text-center max-w-[250px]">
+                        คุณสามารถกดเช็คเอาท์ซ้ำได้ หากต้องการอัปเดตเวลาออกงานล่าสุด
+                    </p>
                 )}
 
                 {/* Time badges */}
                 <div className="flex gap-4 mt-6">
                     {checkInTime && (
-                        <div className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full">
-                            <CheckCircle2 className="h-4 w-4" />
-                            <span className="text-sm font-medium">เข้า {checkInTime}</span>
+                        <div className="flex flex-col items-center gap-1">
+                            <div className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full">
+                                <CheckCircle2 className="h-4 w-4" />
+                                <span className="text-sm font-medium">เข้า {checkInTime}</span>
+                            </div>
+                            {isLate && lateMinutes > 0 && (
+                                <Badge variant="destructive" className="text-[10px] px-2 py-0 mt-1">
+                                    สาย {lateMinutes} นาที
+                                </Badge>
+                            )}
                         </div>
                     )}
                     {checkOutTime && (
-                        <div className="flex items-center gap-2 bg-success/10 text-success px-4 py-2 rounded-full">
-                            <CheckCircle2 className="h-4 w-4" />
-                            <span className="text-sm font-medium">ออก {checkOutTime}</span>
+                        <div className="flex flex-col items-center gap-1">
+                            <div className="flex items-center gap-2 bg-success/10 text-success px-4 py-2 rounded-full">
+                                <CheckCircle2 className="h-4 w-4" />
+                                <span className="text-sm font-medium">ออก {checkOutTime}</span>
+                            </div>
+                            {isEarly && earlyMinutes > 0 && (
+                                <Badge variant="destructive" className="text-[10px] px-2 py-0 mt-1 bg-yellow-500 hover:bg-yellow-600">
+                                    ออกก่อน {earlyMinutes} นาที
+                                </Badge>
+                            )}
                         </div>
                     )}
                 </div>

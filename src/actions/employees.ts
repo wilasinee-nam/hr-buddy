@@ -31,6 +31,10 @@ export async function getEmployees(organizationId: number) {
                 workSchedules: {
                     select: { id: true, name: true, startTime: true, endTime: true },
                 },
+                leaveEntitlements: {
+                    where: { year: new Date().getFullYear() },
+                    select: { leaveTypeId: true, entitledDays: true },
+                },
             },
             orderBy: { name: "asc" },
         });
@@ -76,7 +80,7 @@ export async function getTodayCheckinCount(organizationId: number) {
 
 export async function getEmployeeFormData(organizationId: number) {
     try {
-        const [departments, branches, positions, schedules] = await Promise.all([
+        const [departments, branches, positions, schedules, leaveTypes] = await Promise.all([
             prisma.department.findMany({
                 where: { organizationId },
                 select: { id: true, name: true },
@@ -97,9 +101,14 @@ export async function getEmployeeFormData(organizationId: number) {
                 select: { id: true, name: true, startTime: true, endTime: true },
                 orderBy: { name: "asc" },
             }),
+            prisma.leaveType.findMany({
+                where: { organizationId, isActive: true },
+                select: { id: true, name: true, defaultDays: true },
+                orderBy: { name: "asc" },
+            }),
         ]);
 
-        return { success: true, data: { departments, branches, positions, schedules } };
+        return { success: true, data: { departments, branches, positions, schedules, leaveTypes } };
     } catch (error: any) {
         console.error("Error fetching form data:", error);
         return { success: false, error: error.message };
@@ -116,6 +125,7 @@ interface CreateEmployeeData {
     phoneNumber?: string;
     email?: string;
     vacationDays?: number;
+    leaveEntitlements?: Record<string, number>;
 }
 
 export async function createEmployee(organizationId: number, data: CreateEmployeeData) {
@@ -135,6 +145,18 @@ export async function createEmployee(organizationId: number, data: CreateEmploye
                 startDate: new Date(),
                 ...(data.scheduleId
                     ? { workSchedules: { connect: { id: data.scheduleId } } }
+                    : {}),
+                ...(data.leaveEntitlements && Object.keys(data.leaveEntitlements).length > 0
+                    ? {
+                        leaveEntitlements: {
+                            create: Object.entries(data.leaveEntitlements).map(([typeId, days]) => ({
+                                organizationId,
+                                leaveTypeId: parseInt(typeId),
+                                year: new Date().getFullYear(),
+                                entitledDays: days
+                            }))
+                        }
+                    }
                     : {}),
             },
         });
@@ -157,10 +179,22 @@ interface UpdateEmployeeData {
     phoneNumber?: string;
     email?: string;
     vacationDays?: number;
+    leaveEntitlements?: Record<string, number>;
 }
 
 export async function updateEmployee(employeeId: number, data: UpdateEmployeeData) {
     try {
+        const user = await prisma.user.findUnique({
+            where: { id: employeeId },
+            select: { organizationId: true }
+        });
+        
+        if (!user || !user.organizationId) {
+            throw new Error("User or organization not found");
+        }
+        
+        const orgId = user.organizationId;
+
         // Build workSchedules update: disconnect all then connect new one
         const scheduleUpdate = data.scheduleId !== undefined
             ? {
@@ -184,6 +218,30 @@ export async function updateEmployee(employeeId: number, data: UpdateEmployeeDat
                 ...scheduleUpdate,
             },
         });
+
+        if (data.leaveEntitlements) {
+            const currentYear = new Date().getFullYear();
+            const operations = Object.entries(data.leaveEntitlements).map(([typeId, days]) => {
+                return prisma.leaveEntitlement.upsert({
+                    where: {
+                        userId_leaveTypeId_year: {
+                            userId: employeeId,
+                            leaveTypeId: parseInt(typeId),
+                            year: currentYear,
+                        }
+                    },
+                    update: { entitledDays: days },
+                    create: {
+                        organizationId: orgId,
+                        userId: employeeId,
+                        leaveTypeId: parseInt(typeId),
+                        year: currentYear,
+                        entitledDays: days
+                    }
+                });
+            });
+            await Promise.all(operations);
+        }
 
         revalidatePath("/employees");
         return { success: true };

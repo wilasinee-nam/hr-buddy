@@ -10,7 +10,7 @@ interface TodayStatusProps {
 export function TodayStatus({ 
   checkInTime, 
   checkOutTime, 
-  status = "not_checked" 
+  status = "not_checked"
 }: TodayStatusProps) {
   const today = new Date().toLocaleDateString("th-TH", {
     weekday: "long",

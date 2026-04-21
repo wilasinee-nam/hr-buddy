@@ -61,6 +61,11 @@ export async function submitLeaveRequest(data: {
 }) {
     try {
         const { userId, leaveTypeId, startDate, endDate, reason, documentUrl } = data;
+        
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { organizationId: true } });
+        if (!user || user.organizationId === null) throw new Error("User organization not found");
+        const organizationId = user.organizationId;
+
         const start = new Date(startDate);
         const end = new Date(endDate);
 
@@ -115,6 +120,7 @@ export async function submitLeaveRequest(data: {
             // Create Request
             await tx.leaveRequest.create({
                 data: {
+                    organizationId,
                     userId,
                     leaveTypeId,
                     startDate: start,

@@ -40,7 +40,8 @@ model User {
   email        String?   @db.VarChar(255)
   vacationDays Int?      @default(0) @map("vacation_days")
 
-  attendances         Attendance[]
+  dailyAttendances    DailyAttendance[]
+  attendanceLogs      AttendanceLog[]
   departmentApprovers DepartmentApprover[]
   workSchedules       WorkSchedule[]
   leaveRequests       LeaveRequest[]
@@ -53,12 +54,39 @@ model User {
   @@map("users")
 }
 
-model Attendance {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  timestamp DateTime @default(now())
-  type      String // "IN" or "OUT"
+model DailyAttendance {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  user      User      @relation(fields: [userId], references: [id])
+  date      DateTime  @db.Date
+  checkIn   DateTime? @map("check_in") @db.Timestamptz(6)
+  checkOut  DateTime? @map("check_out") @db.Timestamptz(6)
+  isLate    Boolean   @default(false) @map("is_late")
+  status    String    @default("present") @db.VarChar(20)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  logs      AttendanceLog[]
+
+  @@unique([userId, date])
+  @@map("daily_attendances")
+}
+
+model AttendanceLog {
+  id                Int             @id @default(autoincrement())
+  dailyAttendanceId Int             @map("daily_attendance_id")
+  dailyAttendance   DailyAttendance @relation(fields: [dailyAttendanceId], references: [id])
+  userId            Int             @map("user_id")
+  user              User            @relation(fields: [userId], references: [id])
+  timestamp         DateTime        @default(now()) @db.Timestamptz(6)
+  type              String          @db.VarChar(10)
+  lat               Float?
+  lng               Float?
+  distance          Int?
+  isWithinRadius    Boolean         @default(true) @map("is_within_radius")
+  
+  @@index([userId, timestamp])
+  @@map("attendance_logs")
 }
 
 enum OrganizationStatus {
@@ -85,6 +113,8 @@ model Organization {
   workSchedules   WorkSchedule[]
   rolePermissions RolePermission[]
   leaveTypes      LeaveType[]
+  leaveRequests   LeaveRequest[]
+  leaveEntitlements LeaveEntitlement[]
 
   @@index([status], map: "IDX_f3770f157bd77d83ab022e92fc")
   @@index([createdAt], map: "IDX_016dacd1399bee33b39ad7fa97")
@@ -218,6 +248,8 @@ model LeaveType {
 
 model LeaveRequest {
   id              Int       @id @default(autoincrement())
+  organizationId  Int       @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id])
   userId          Int       @map("user_id")
   user            User      @relation(fields: [userId], references: [id])
   leaveTypeId     Int       @map("leave_type_id")
@@ -234,6 +266,7 @@ model LeaveRequest {
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  @@index([organizationId])
   @@index([userId])
   @@index([leaveTypeId])
   @@index([status])
@@ -242,6 +275,8 @@ model LeaveRequest {
 
 model LeaveEntitlement {
   id            Int       @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  organization  Organization @relation(fields: [organizationId], references: [id])
   userId        Int       @map("user_id")
   user          User      @relation(fields: [userId], references: [id])
   leaveTypeId   Int       @map("leave_type_id")
@@ -255,5 +290,6 @@ model LeaveEntitlement {
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([userId, leaveTypeId, year])
+  @@index([organizationId])
   @@map("leave_entitlements")
 }
