@@ -53,7 +53,7 @@ export async function getTodayCheckinCount(organizationId: number) {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
-        const checkins = await prisma.attendance.findMany({
+        const checkins = await prisma.attendanceLog.findMany({
             where: {
                 type: "IN",
                 timestamp: {

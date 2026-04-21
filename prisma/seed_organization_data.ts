@@ -363,6 +363,7 @@ async function main() {
                         entitledDays: entitledDays,
                     },
                     create: {
+                        organizationId: org.id,
                         userId: user.id,
                         leaveTypeId: type.id,
                         year: currentYear,
